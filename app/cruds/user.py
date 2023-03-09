@@ -1,13 +1,12 @@
 from fastapi import FastAPI
-from app.models.models import User
-from app.models.models import Task
+from app.models.models import User,Task,Slot
 from app.schemas.users import UserBase
 from app.cruds.auth import get_password_hash
 from sqlalchemy.orm import Session
 from sqlalchemy.future import select
 from sqlalchemy import delete
 from app.cruds.response import user_response,slots_response,tasks_response
-
+import datetime
 def user_all(db:Session):
     items=db.scalars(select(User)).all()
     response_users=[{"id":user.id,
@@ -56,3 +55,13 @@ def user_createtask(user_id:str,db:Session):
     user=db.get(User,user_id)
     tasks=user.create_task
     return tasks_response(tasks)
+
+def user_endslots(user_id:str,db:Session):
+    slots=db.get(User,user_id).slots
+    response_slots=[slot for slot in slots if slot.end_time<datetime.datetime.now()]
+    return slots_response(response_slots)
+
+def user_slots(user_id:str,db:Session):
+    slots=db.get(User,user_id).slots
+    response_slots=[slot for slot in slots if slot.end_time>datetime.datetime.now()]
+    return slots_response(response_slots)

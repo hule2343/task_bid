@@ -4,12 +4,20 @@ from app.models.models import User
 from app.schemas.bid import BidRequest
 from app.models.models import Bid,Bidder,Slot
 from sqlalchemy.orm import Session
-from app.cruds.response import bids_response,bid_response,bidder_response
+from app.cruds.response import bids_response,bid_response,bidder_response,bids_response_for_user
 from app.cruds.slot import slot_response
 import app.cruds.message as message
 from sqlalchemy.future import select
 
-
+def bid_getbyid(bid_id:str,user:User,db:Session):
+    bid=db.get(Bid,bid_id )
+    bidder=db.scalars(select(Bidder).filter(Bidder.user_id==user.id,Bidder.bid_id==bid_id).limit(1)).first()
+    response=bid_response(bid)
+    if bidder==None:
+        response["user_bidpoint"]="notyet"
+        return response
+    bid['user_bidpoint']=bidder.point   
+    return  response
 
 def bid_post(bid:BidRequest,db:Session,user:User):
     bid=Bid(name=bid.name,
@@ -66,9 +74,9 @@ def bid_all(db:Session):
     return respone_bids
 
 
-def bid_user_bidable(db:Session):
+def bid_user_bidable(user:User,db:Session):
     opening_bids=db.execute(select(Bid).filter(Bid.open_time<datetime.datetime.now(),Bid.close_time>datetime.datetime.now())).scalars().all()
-    return bids_response(opening_bids)
+    return bids_response_for_user(opening_bids,user,db)
 
 
     
@@ -86,12 +94,11 @@ def bid_lack(user:User,db:Session):
         slot=bid.slot
         assignees=slot.assignees
         task=slot.task
-        exp_assignees=[exp_assignee for exp_assignee in assignees if task in assignees.exp_task]
+        exp_assignees=[exp_assignee for exp_assignee in assignees if task in exp_assignee.exp_task]
+        if task.min_woker_num > len(assignees):
+            lack_bids.append(bid)
         if task.exp_woker_num>len(exp_assignees):
             lack_exp_bids.append(bid)
-            continue
-        elif task.min_woker_num > len(assignees):
-            lack_bids.append(bid)
             continue
         
     return {"lack_bids":bids_response(lack_bids),"lack_exp_bids":bids_response(lack_exp_bids)}
@@ -126,7 +133,7 @@ def bid_tenderlack(bid_id:str,user:User,db:Session):
                 status_code=status.HTTP_405_METHOD_NOT_ALLOWED
             )
         
-        bidder=Bidder(point=task.min_woker_num-1)
+        bidder=Bidder(point=bid.buyout_point-1)
         bidder.user=user
         bid.bidder.append(bidder)
         slot.assignees.append(user)
@@ -138,7 +145,7 @@ def bid_tenderlack(bid_id:str,user:User,db:Session):
             raise  HTTPException(
                 status_code=status.HTTP_405_METHOD_NOT_ALLOWED
             )
-        bidder=Bidder(point=task.min_woker_num-1)
+        bidder=Bidder(point=bid.buyout_point-1)
         bidder.user=user
         bid.bidder.append(bidder)
         slot.assignees.append(user)
@@ -204,13 +211,56 @@ def bid_close(bid_id:str,db:Session):
                 slot.assignees.append(inexp_bidders[index].user)
             db.commit()
             return slot_response(slot)
-        
-def bid_cancel():
-    pass
-        
-                
-        
-        
-            
+
+def assignee_convert(user_id:str,bid_id:str,request_user:User,db:Session):
+    bid=db.get(Bid,bid_id)
+    slot=bid.slot
+    cancel_user=db.get(User,user_id)
+    if not cancel_user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    bidder=db.scalars(select(Bidder).filter(Bidder.bid_id==bid_id,Bidder.user_id==user_id ).limit(1)).first()
+    if not bid:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    if not bidder:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND
+        )
+    if not bidder.is_canceled:
+        raise HTTPException(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            detail=f'bidder.is_canceled is{bidder.is_canceled}',
+        )
+    bidder.user=request_user
+    bidder.is_canceled=False
+    slot.assignees.remove(cancel_user)
+    slot.assignees.append(request_user)
+    db.commit()
+    return bidder_response(bidder)
+
+
+def bidder_patch_user_point(bid_id:str,user:User,tender_point:int,db:Session):
+    bid=db.get(Bid,bid_id)
+    task=bid.slot.task
+    if not task in user.exp_task:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN
+        )
+    bidder=db.scalars(select(Bidder).filter(Bidder.bid_id==bid_id,Bidder.user_id==user.id).limit(1)).first()
+    bidder.point=tender_point
+    db.commit()
+    return bidder_response(bidder)
+
+
+def close_all_bid(db:Session):
+    bids=db.execute(select(Bid).filter(Bid.close_time<datetime.datetime.now())).scalars().all()
+    closed_bid_id_list=[]
+    for bid in bids:
+        response=bid_close(bid.id,db)
+        closed_bid_id_list.append(response["id"])
+    return closed_bid_id_list
             
             

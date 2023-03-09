@@ -36,6 +36,14 @@ async def user_createtask(user_id:str,db:Session=Depends(get_db),):
     tasks=crud.user_createtask(user_id,db)
     return tasks
 
+@router.get('/{user_id}/slots')
+async def user_createtask(user_id:str,end:bool|None=None,db:Session=Depends(get_db),):
+    if end:
+        slots=crud.user_endslots(user_id,db)
+        return slots
+    tasks=crud.user_slots(user_id,db)
+    return tasks
+
 @router.delete("/",status_code=200)
 async def user_delete(name:str,db:Session=Depends(get_db)):
     crud.user_delete(name,db)

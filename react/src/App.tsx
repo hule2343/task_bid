@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route} from "react-router-dom";
 import { BidPage } from "./component/RecruitPage";
 import { Register } from "./component/form/Register";
 import { Login } from "./component/form/Login";
@@ -8,11 +8,13 @@ import { UserManager } from "./UserContext";
 import { SlotForm } from "./component/form/SlotForm";
 import { TaskForm } from "./component/form/TaskForm";
 import { BidForm } from "./component/form/BidForm";
+import { SnackbarContextProvider } from "./component/Snackbar";
 const App: React.FC = () => {
   return (
     <BrowserRouter>
+      <SnackbarContextProvider>
       <Routes>
-        <Route path="/" element={<Layout />}>
+        <Route path="/" element={<UserManager><Layout /></UserManager>}>
           <Route
             path={`/bidpage/`}
             element={
@@ -27,7 +29,8 @@ const App: React.FC = () => {
           <Route path="/newtask/" element={<TaskForm />} />
           <Route path="/newbid/" element={<BidForm />} />
         </Route>
-      </Routes>
+        </Routes>
+        </SnackbarContextProvider>
     </BrowserRouter>
   );
 };

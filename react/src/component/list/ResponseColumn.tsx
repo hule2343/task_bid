@@ -4,12 +4,13 @@ import {
   BidResponse,
   SlotResponse,
   TaskResponse,
+  BidderResponse
 } from "../../ResponseType";
 import { List, ListSubheader } from "@mui/material";
 import { ResponseCard } from "../field/ResponseCard";
 type ResponseColumnProps = {
   day: Date | null;
-  data: BidResponse[] | SlotResponse[] | TaskResponse[];
+  data: BidResponse[] | SlotResponse[] | TaskResponse[] |BidderResponse[];
 };
 
 export const ResponseColumn: React.FC<ResponseColumnProps> = (

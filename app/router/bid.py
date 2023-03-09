@@ -1,5 +1,5 @@
 from fastapi import APIRouter,Depends,HTTPException,status
-from app.schemas.bid import BidRequest,TenderRequest
+from app.schemas.bid import BidRequest,TenderRequest,BidConvertRequest
 from app.models.models import User
 from app.models.models import Bid,Bidder
 from sqlalchemy.orm import Session
@@ -12,13 +12,29 @@ from  sqlalchemy.future import select
 router=APIRouter()
 
 @router.get("/")
-async def bid_get(name:str|None=None,db:Session=Depends(get_db)):
+async def bid_get(name:str|None=None,lack:bool|None=None,lack_exp:bool|None=None,user:User=Depends(get_current_active_user), db:Session=Depends(get_db)):
     if name:
         bid=crud.bid_get(name,db)
         return bid
-    bids=crud.bid_all(db)
+    if lack:
+        response=crud.bid_lack(user,db)
+        return response["lack_bids"]
+    if lack_exp:
+        response=crud.bid_lack(user,db)
+        return response["lack_exp_bids"]
+    bids=crud.bid_user_bidable(user,db)
     return bids
-    
+
+@router.get('/{bid_id}')
+async def bid_getbyid(bid_id:str,user:User=Depends(get_current_active_user), db:Session=Depends(get_db)):
+    bid=crud.bid_getbyid(bid_id,user,db)
+    return bid
+
+@router.patch('/{bid_id}')
+async def bidder_patch_user_point(bid_id:str,request:TenderRequest,user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
+    bidder=crud.bidder_patch_user_point(bid_id,user,request.tender_point,db)
+    return bidder
+
 @router.post("/")
 async def bid_post(bid:BidRequest,db:Session=Depends(get_db),user:User=Depends(get_current_active_user)):
     if auth.check_authority(user,'POST','/bids/'):
@@ -33,22 +49,7 @@ async def bid_post_personal(bid:BidRequest,db:Session=Depends(get_db),user:User=
     if auth.check_authority(user,'POST','/bids/personal'):
         response=crud.bid_post_personal(bid,db,user)
         return response
-
-@router.get('/open')
-async def bid_user_bidable(db:Session=Depends(get_db)):
-    response=crud.bid_user_bidable(db)
-    return response
-
-
-@router.get('/lack')
-async def bid_user_lacking(user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
-    response=crud.bid_lack(user,db)
-    return response["lack_bids"]
-
-@router.get('/lack_exp')
-async def bid_exp_lacking(user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
-    response=crud.bid_lack(user,db)
-    return response["lack_exp_bids"]
+  
 
 @router.post("/{bid_id}/tender")
 async def bid_tender(bid_id:str,request:TenderRequest,current_user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
@@ -83,8 +84,7 @@ async def bid_close(bid_id:str,db:Session=Depends(get_db)):
     slot=crud.bid_close(bid_id,db)
     return slot
 
-@router.get('/lack')
-async def bid_get_lack(db:Session=Depends(get_db)):
-    bids=crud.bid_lack(db)
-    return bids
-
+@router.patch('/{bid_id}/convert')
+async def slot_convet(bid_id:str,request:BidConvertRequest,user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
+    response=crud.assignee_convert(request.user_id,bid_id,user,db)
+    return response

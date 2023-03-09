@@ -15,10 +15,12 @@ from sqlalchemy.future import select
 router=APIRouter()
 
 @router.get("/")
-async def slot_list(name:str|None=None,db:Session=Depends(get_db)):
+async def slot_list(name:str|None=None,end:bool|None=None,db:Session=Depends(get_db)):
     if name:
         slot=crud.slot_get(name,db)
         return slot
+    if end:
+        slot=crud.slot_finished(db)
     slots=crud.slot_all(db)
     return slots
 
@@ -31,7 +33,7 @@ async def slot_post(slot:SlotRequest,db:Session=Depends(get_db),user:User=Depend
 @router.post("/{slot_id}/cancel")
 async def slot_cancel(slot_id:str,request:SlotCancelRequest,user:User=Depends(get_current_active_user) , db:Session=Depends(get_db)):
     slot=crud.slot_cancel(slot_id,user,request.premire_point,db)
-    return crud.slot_response(slot)
+    return slot
 
 @router.post('/{slot_id}/reassign')
 async def slot_reassign(slot_id:str,user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
@@ -42,4 +44,4 @@ async def slot_reassign(slot_id:str,user:User=Depends(get_current_active_user),d
 async def slot_complete(slot_id:str,user:User=Depends(get_current_active_user),db:Session=Depends(get_db)):
     response=crud.slot_complete(slot_id,user,db)
     return response
-    
+

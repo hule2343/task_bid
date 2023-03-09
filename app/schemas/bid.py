@@ -39,4 +39,8 @@ class BidRequest(BaseModel):
     buyout_point:int
     class Config:
         orm_mode=True
-    
+
+class BidConvertRequest(BaseModel):
+    user_id:str
+    class Config:
+        orm_mode=True

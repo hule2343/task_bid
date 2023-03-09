@@ -1,17 +1,9 @@
-from typing import Dict,TYPE_CHECKING
 from uuid import UUID
 from pydantic import BaseModel
-if TYPE_CHECKING:
-    from schemas.task import Slot
 
 
-class TemplateBase(BaseModel):
+
+class TemplateCreate(BaseModel):
     name:str
-    slots:list[Dict]=[]
+    slots:list[str]=[]
 
-
-class Template(BaseModel):
-    id:UUID
-    class Config:
-        orm_mode=True
-    

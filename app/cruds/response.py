@@ -32,7 +32,6 @@ def bid_response(bid:Bid):
         "start_point":bid.start_point,
         "buyout_point":bid.buyout_point,
         "is_complete":bid.is_complete,
-        "bidder":bid.bidder
     }
     return response    
 
@@ -80,16 +79,35 @@ def bids_response(bids:list[Bid]):
     return respone_bids
 
 
+def bids_response_for_user(bids:list[Bid],user:User,db:Session):
+    respone_bids=bids_response(bids)
+    for bid in respone_bids:
+        bidder=db.scalars(select(Bidder).filter(Bidder.bid_id==bid['id'],Bidder.user_id==user.id).join(Bid.bidder).order_by(Bidder.point).limit(1)).first()
+        if bidder==None:
+            bid["user_bidpoint"]="notyet"
+            continue
+        bid['user_bidpoint']=bidder.point
+    return respone_bids
+
 def bidder_response(bidder:Bidder):
     response={
-        "bid_id":bidder.bid_id,
-        "bid":bidder.bid.name,
+        "id":bidder.bid_id,
+        "name":bidder.bid.name,
         "user_id":bidder.user_id,
         'user':bidder.user.name,
         "point":bidder.point
     }
     return response
 
+def bidders_response(bidder:list[Bidder]):
+    response=[{
+        "id":bidder.bid_id,
+        "name":bidder.bid.name,
+        "user_id":bidder.user_id,
+        'user':bidder.user.name,
+        "point":bidder.point
+    } for bidder in bidder]
+    return response
 
 def slot_response(slot:Slot):
     response={
